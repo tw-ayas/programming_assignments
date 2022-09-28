@@ -8,8 +8,6 @@ server: server.c
 
 client: client.c
 	$(CC) $(CFLAGS)  -g -o $@ $<
-
-check: all
-
+	
 clean:
 	rm -f server client
