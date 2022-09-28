@@ -19,7 +19,7 @@ Both parameter are optional
 
 # Allocation using Best fit strategy
 
-For allocating memory, I have used the best fit strategy. For this strategy, we first iterate through the complete linked list to find the smallest block that fits our size. Then we iterate again to find the pointer of this best block and use it. If no such block can be found, we extend the heap and create a new block. 
+For allocating memory, I have used the best fit strategy. For this strategy, we first iterate through the complete linked list to find the smallest block that fits our size. If a block with the exact size requirement is found, then also we will break the iteratioon and select it as the best block. Then we iterate again to find the pointer of this best block and use it. If no such block can be found, we extend the heap and create a new block. 
 
 # Thread safety using THREAD LOCAL STORAGE (TLS)
 
