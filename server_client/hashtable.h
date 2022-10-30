@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdatomic.h>
+#include <pthread.h>
 #include <string.h>
 
 struct item{
@@ -14,7 +15,8 @@ typedef struct item item;
 struct bucket{
     item *start;
     int size;
-    atomic_bool locked;
+    int readerCount;
+    pthread_mutex_t counter_lock, write_lock;
 };
 typedef struct bucket bucket;
 
@@ -42,7 +44,8 @@ HashTable *create_hashtable(int size){
         table->buckets[i] = malloc(sizeof(bucket));
         table->buckets[i]->start = NULL;
         table->buckets[i]->size = NULL;
-        atomic_flag_clear(&(table->buckets[i]->locked));
+        table->buckets[i]->readerCount = 0;
+        pthread_mutex_unlock(&(table->buckets[i]->write_lock));
     }
 
     return table;
@@ -78,7 +81,7 @@ void insert(HashTable *table, int value){
     int index = hash_function(value, table->size);
     currentBucket = table->buckets[index];
 
-    while(atomic_flag_test_and_set(&(currentBucket->locked)));
+    pthread_mutex_lock(&(currentBucket->write_lock));
 
     current = currentBucket->start;
     if(current == NULL) {
@@ -93,7 +96,7 @@ void insert(HashTable *table, int value){
         current->next = item;
     }
 
-    atomic_flag_clear(&(currentBucket->locked));
+    pthread_mutex_unlock(&(currentBucket->write_lock));
 
 }
 
@@ -102,12 +105,12 @@ void delete(HashTable *table, int value){
     
     bucket *bucket = table->buckets[index];
 
-    while(atomic_flag_test_and_set(&(bucket->locked)));
+    pthread_mutex_lock(&(bucket->write_lock));
 
     item* current = bucket->start;
     item* n_item;
     if(current == NULL) {
-        atomic_flag_clear(&(bucket->locked));
+        pthread_mutex_unlock(&(bucket->write_lock));
         return;
     }else {
         n_item = current->next;
@@ -122,7 +125,7 @@ void delete(HashTable *table, int value){
                 current = current->next;
                 n_item = current->next;
                 if (n_item == NULL) {
-                    atomic_flag_clear(&(bucket->locked));
+                    atomic_flag_clear(&(bucket->write_lock));
                     return;
                 }
             }
@@ -131,7 +134,7 @@ void delete(HashTable *table, int value){
         }
     }
 
-    atomic_flag_clear(&(bucket->locked));
+    pthread_mutex_unlock(&(bucket->write_lock));
 }
 
 void readBucket(HashTable *table, int value, char *buf){
@@ -140,7 +143,12 @@ void readBucket(HashTable *table, int value, char *buf){
     bucket* currentBucket = table->buckets[index];
     char str[64];
     strcpy(str, "Bucket: ");
-    while(atomic_flag_test_and_set(&(currentBucket->locked)));
+    pthread_mutex_lock(&(currentBucket->counter_lock));
+    currentBucket->readerCount++;
+    if(currentBucket->readerCount == 1){
+        pthread_mutex_lock(&(currentBucket->write_lock));
+    }
+    pthread_mutex_unlock(&(currentBucket->counter_lock));
     item *currentItem = currentBucket->start;
     while(currentItem != NULL ){
         char num[12];
@@ -148,6 +156,11 @@ void readBucket(HashTable *table, int value, char *buf){
         strcat(str, num);
         currentItem = currentItem->next;
     }
-    atomic_flag_clear(&(currentBucket->locked));
+    pthread_mutex_lock(&(currentBucket->counter_lock));
+    currentBucket->readerCount--;
+    if(currentBucket->readerCount == 0){
+        pthread_mutex_unlock(&(currentBucket->write_lock));
+    }
+    pthread_mutex_unlock(&(currentBucket->counter_lock));
     strcpy(buf, str);
 }
