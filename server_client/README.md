@@ -1,6 +1,7 @@
 # Server Client Programs using Shared Memory Buffers
 
 Compile using make:
+
 Run server: ./server <hashtable_size>
 Run client: ./client
 
