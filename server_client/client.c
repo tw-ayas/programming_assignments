@@ -19,7 +19,7 @@ int main(){
         printf("*** Server has not started yet. ***\n");
         //exit(1);
     }
-    printf("Server initialised Shared Memory Buffer to queue Requests...\n");
+    printf("Client initialised Shared Memory Buffer to queue Requests...\n");
 
     Request *requestArray = (Request *)shmat(ShmID, NULL, 0);
 
@@ -79,14 +79,14 @@ int main(){
                     atomic_flag_clear(&(requestArray[i].locked));
                 }
                 
-                pid_t pid_subshell = fork();
-                if(pid_subshell == -1){
-                    printf("Response executor failed...\n");
-                    exit(0);
-                }
-                else if(pid_subshell == 0){
+                //pid_t pid_subshell = fork();
+                //if(pid_subshell == -1){
+                //    printf("Response executor failed...\n");
+                //    exit(0);
+                //}
+                //else if(pid_subshell == 0){
                     while(1){
-                        sleep(1);
+                        //sleep(1);
                         while(atomic_flag_test_and_set(&(requestArray[pos].locked)));
                         //printf("Waiting Req %d\n", pos);
                         if(requestArray[pos].status == AVAILABLE){
@@ -97,8 +97,8 @@ int main(){
                         }
                         atomic_flag_clear(&(requestArray[pos].locked));
                     }
-                    return 0;
-                }
+                //    return 0;
+                //}
             }
         }
     }

@@ -1,12 +1,14 @@
 # Server Client Programs using Shared Memory Buffers
 
 Compile using make:
+
 Run server: ./server <hashtable_size>
+
 Run client: ./client
 
 # Server
 
-Server initialises a Hashtable and attaches a shared memory buffer. Then it waits for incoming requests by iterating over the requests structure stored in the shared memory buffer. 
+Server initialises a Hashtable and attaches a shared memory buffer. Then it waits for incoming requests by iterating over the requests structure stored in the shared memory buffer. Initialised with 4 threads, all threads iterate over Request array to execute operations.
 
 # Client
 
@@ -16,5 +18,5 @@ Available commands: INSERT, READ and DELETE
 after entering command and value can be entered. The value is then stored in the hashtable by the Server. 
 
 # Locks
-we use locks to ensure concurrency while editing the hashtable and the request struct. 
+we use locks to ensure concurrency while editing the hashtable and the request struct. Writing lock is enabled every time when readerCount > 0 and writing lock is enabled when editing hashtable bucket.
 

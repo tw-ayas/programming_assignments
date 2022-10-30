@@ -8,7 +8,7 @@
 #define DELETE 7
 #define KILL 8
 #define MAXCOMMAND 64
-#define RESPONSEBUF 64
+#define RESPONSEBUF 256
 
 #define QUEUELENGTH 32
 
