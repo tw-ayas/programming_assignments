@@ -3,6 +3,7 @@
 Compile using make:
 
 Run server: ./server <hashtable_size>
+
 Run client: ./client
 
 # Server
