@@ -8,6 +8,40 @@
 #include <string.h>
 #include "shared.h"
 
+HashTable *table;
+Request *requestArray;
+int nthreads = 4;      // Default number of threads.
+
+void *worker(){
+    int endServer = 0;
+    while(!endServer){
+        //sleep(1);
+        for(int i=0; i < QUEUELENGTH;i++){
+            if(!atomic_flag_test_and_set(&(requestArray[i].locked))){
+                if(requestArray[i].status == QUEUED){
+                    //Process Request
+                    printf("requestPos:%d Command:%d Value:%d\n", i, requestArray[i].command, requestArray[i].value);
+                    switch (requestArray[i].command){
+                        case INSERT:
+                            insert(table, requestArray[i].value);
+                            strcpy(requestArray[i].buf, "INSERT Completed");
+                            break;
+                        case READ:
+                            readBucket(table, requestArray[i].value, requestArray[i].buf);
+                            break;
+                        case DELETE:
+                            delete(table, requestArray[i].value);
+                            strcpy(requestArray[i].buf, "DELETE Completed");
+                            break;
+                    }
+                    requestArray[i].status = AVAILABLE;
+                }
+                atomic_flag_clear(&(requestArray[i].locked));
+            }
+        }
+    }
+}
+
 int main(int argc, char* argv[]){
     if(argc < 2){
         printf("Define Hashtable size...\n./server <hashtablesize>\n");
@@ -15,7 +49,7 @@ int main(int argc, char* argv[]){
     }
 
     int tablesize = atoi(argv[1]);
-    HashTable *table = create_hashtable(tablesize);
+    table = create_hashtable(tablesize);
 
     if (table < 0) {
         printf("Could not initialise Hashtable...\n");
@@ -40,39 +74,25 @@ int main(int argc, char* argv[]){
         }
     }
     printf("Server initialised Shared Memory Buffer to queue Requests...\n");
-    Request *requestArray = (Request *)shmat(ShmID, NULL, 0);
+    requestArray = (Request *)shmat(ShmID, NULL, 0);
 
     for(int i=0; i < QUEUELENGTH; i++){
         Request req;
         req.status = FREE;
         requestArray[i] = req;
+        atomic_flag_clear(&(requestArray[i].locked));
     }
 
-    int endServer = 0;
-    while(!endServer){
-        sleep(1);
-        for(int i=0; i < QUEUELENGTH;i++){
-            while(atomic_flag_test_and_set(&(requestArray[i].locked)));
-            if(requestArray[i].status == QUEUED){
-                //Process Request
-                printf("requestPos:%d Command:%d Value:%d\n", i, requestArray[i].command, requestArray[i].value);
-                switch (requestArray[i].command){
-                    case INSERT:
-                        insert(table, requestArray[i].value);
-                        strcpy(requestArray[i].buf, "INSERT Completed");
-                        break;
-                    case READ:
-                        readBucket(table, requestArray[i].value, requestArray[i].buf);
-                        break;
-                    case DELETE:
-                        delete(table, requestArray[i].value);
-                        strcpy(requestArray[i].buf, "DELETE Completed");
-                        break;
-                }
-                requestArray[i].status = AVAILABLE;
-            }
-            atomic_flag_clear(&(requestArray[i].locked));
-        }
+    pthread_t *threads; 
+    threads = (pthread_t *)malloc(nthreads * sizeof(pthread_t));
+
+    int i;
+    for (i = 0; i < nthreads; i++) {
+        pthread_create(&threads[i], NULL, &worker, NULL);
+    }
+
+    for (i = 0; i < nthreads; i++) {
+        pthread_join(threads[i], NULL);
     }
 
     shmctl(ShmID, IPC_RMID, NULL);
